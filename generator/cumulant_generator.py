@@ -1,0 +1,643 @@
+# cumulant_generator.py
+
+import sys
+import os
+import sympy as sp
+import itertools
+import math
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# weights w, lattice vectors c, equilibrium distribution f_eq, matrix M for raw moment
+from generator.generator_utils.common_utils import calculate_weight, create_vectors
+from generator.generator_utils.common_utils import create_feq_list
+from generator.generator_utils.common_utils import create_trans_matrix
+
+from generator.generator_utils.cumulant_utils import create_moment_dictionary
+from generator.generator_utils.cumulant_utils import chimera_moment
+from generator.generator_utils.cumulant_utils import generate_central_moment_expr
+from generator.generator_utils.cumulant_utils import generate_cumulant_from_central
+from generator.generator_utils.cumulant_utils import back_trans_kappa_to_raw
+from generator.generator_utils.cumulant_utils import back_trans_raw_to_f
+
+# code generator
+from generator.generator_utils.export_utils import TypeWriter
+
+
+def normalize_omega_config(input_vals, num_params):
+    if input_vals is None:
+        return [f"lbm.omega[{i}]" for i in range(1, num_params + 1)]    
+    if not isinstance(input_vals, list):
+        vals = [input_vals]
+    else:
+        vals = input_vals
+    omega_values = vals + [1.0] * (num_params - len(vals)) # fill in omega list, and fill 1 if the given list is short
+    return omega_values[:num_params] # if list size is too large, cut overflow
+
+def create_omega_mapper(om_syms, input_vals, num_params):
+    omega_values = normalize_omega_config(input_vals, num_params)
+    omega_config = {}
+    for i in range(1, len(om_syms)):
+        val = omega_values[i-1] # note: 0-indexed, so shift i
+        if isinstance(val, (int, float)):
+            omega_config[om_syms[i]] = sp.sympify(val)
+        else:
+            omega_config[om_syms[i]] = sp.Symbol(val)            
+    return omega_config
+
+# collision_model = "BGK", "TRT", "MRT", "Cumulant"
+# dimension = 2 (D2Q9) or 3 (D3Q27)
+    # omega[1]  : shear -> omega
+    # omega[2]  : bulk  -> omP (use this for omega_{-} in TRT)
+    # omega[3]  : for sum  of combinations of 120, 102, 210, 012, 201, 021 in D3Q27; for 12, 21 in D2Q9 (om3)
+    # omega[4]  : for diff of combinations of 120, 102, 210, 012, 201, 021 in D3Q27; for 12, 21 in D2Q9 (om3)
+    # omega[5]  : for 111
+    # omega[6]  : for 220, 202, 022; for 22 in D2Q9 (om4)
+    # omega[7]  : for 220, 202, 022; for 22 in D2Q9 (om4)
+    # omega[8]  : for 211, 121, 112
+    # omega[9]  : for 221, 212, 122
+    # omega[10] : for 222
+
+
+def allrun(target_directory="./lb_solver/"):
+    models  = ["BGK", "TRT", "MRT", "Cumulant"]
+    vmodels = [(2, 9), (3, 27)]
+    drho_mode = ["rho", "drho"]
+    for model in models:
+        for vmodel in vmodels:
+            for rho in drho_mode:
+                dim, Q = vmodel
+                filename = f"d{dim}q{Q}_{model}_kernel.py" if rho=="rho" else f"d{dim}q{Q}_{model}_{rho}_kernel.py"
+                run_generator(collision_model=model, drho_mode=rho, dimension=dim, omega_config_input=None, output_filename=filename)
+
+
+def run_generator(collision_model="Cumulant", drho_mode="rho", dimension=3, omega_config_input=None, silent=False, output_filename="generated_kernel.py", target_directory="./lb_solver/"):
+    density_shift = sp.Integer(1) if drho_mode == 'drho' else sp.Integer(0)
+
+    output_filename = target_directory + output_filename
+
+    dim = dimension
+    num_params = 10 # [10 omegas]
+    om_syms = [None] + list(sp.symbols(f'om1:{num_params + 1}')) # sp.symbols('om1 om2 ... om10') # om_syms[1] -> om1
+    omega_config = create_omega_mapper(om_syms, omega_config_input, num_params)
+    if not (silent):
+        print("\n# omega setting: \n", omega_config)
+
+    vectors = create_vectors(dim)                    # lattice vector c
+    weights = [calculate_weight(v) for v in vectors] # weights w
+    num_pops = len(vectors)                          # Q (9 or 27)
+
+    all_orders = list(itertools.product((0, 1, 2), repeat=dim))
+    moment_orders = sorted(all_orders, key=lambda x: (sum(x), -x[0]))
+    mom_names = ["m" + "".join(map(str, order)) for order in moment_orders] # raw moment named m
+    cum_names = ["c" + "".join(map(str, order)) for order in moment_orders] # cumulant named c
+
+    # macroscopic variables
+    rho_name = 'rho'
+    vel_names = ['u', 'v', 'w'][:dim]
+    rho = sp.Symbol(rho_name) # sympy symbol
+    vel_syms = sp.symbols(vel_names) # sympy symbol
+    cs2 = sp.Rational(1, 3) # sound speed square [not used]
+
+    # distribution functions
+    f_syms = sp.symbols([f'f{i}' for i in range(num_pops)]) # sympy symbol of f
+
+    # packing moments symbols
+    # moment, central moment, cumulant
+    # pre/post
+    M_raw, M_post, K_cen, K_post, C_cum, C_post = create_moment_dictionary(moment_orders, rho)
+    moments_pack   = [M_raw, K_cen]
+    cumulants_pack = [K_cen, K_post, C_cum, C_post]
+
+    # will be sent to TypeWriter
+    class_name, new_name, old_name = 'lbm', 'f_post', 'f_pre'
+    default_pack = [dim, num_pops, collision_model, vectors, weights]
+    misc_pack    = [ class_name, old_name, new_name ]
+
+    # - * - macroscopic variables - * - #
+    # physics : rho = sum f
+    rho_expr = sum(f_syms) # rho = f0 + f1 + ...
+    vel_exprs = []
+    for d_idx in range(dim): # physics : v = sum c f / rho
+        momentum_expr = sum(vec[d_idx] * f_syms[i] for i, vec in enumerate(vectors))
+        vel_exprs.append( momentum_expr / ( rho_expr + density_shift ) ) # u = (f1 - f3 + ...)/(f0 + f1 + ...)
+
+    macro_keys   = [rho_name] + vel_names
+    macro_values = [rho_expr] + vel_exprs[:dim]
+    macro_exprs  = dict(zip(macro_keys, macro_values)) # dict loos like macro_exprs = {'rho': rho_expr, 'u': vel_exprs[0], 'v': vel_exprs[1], 'w': vel_exprs[2]}
+
+    feq_syms     = sp.symbols([f'feq{i}' for i in range(num_pops)])
+    feq_exprs    = create_feq_list(dim, rho_expr, vel_exprs, vectors, weights, trunc=2) # expanded with f
+    feq_raw_list = create_feq_list(dim, sp.Symbol(rho_name), sp.symbols(vel_names), vectors, weights, trunc=2) # raw equation (not expanded with f)
+
+    # for drho mode
+    # note: rho -> 1 + drho
+    #              for coding simplicity, drho is written as rho
+    feq_shift_list = [f - w for f, w in zip(feq_raw_list, weights)] # shifted distribution
+    feq_shift_list = [ feq.xreplace({rho: density_shift + rho}) for feq in feq_shift_list ]
+
+    feq_function = feq_raw_list if drho_mode=='rho' else feq_shift_list
+
+    # console massage
+    print(f"\n# -------------------------------------------------------------------------")
+    print(f"# ")
+    print(f"# >>> invoking {collision_model} code generator >>>")
+    print(f"# ")
+    print(f"# density shift mode :  {density_shift}")
+    if drho_mode == 'drho':
+        print(f"#                       [rho] in the generated eqs. should read [delta rho] ")
+    print(f"# ")
+    print(f"# -------------------------------------------------------------------------\n")
+
+
+    pipe_exprs = {} # store expressions to pass all to code generator
+    code_bundle = [] # to be updated in the following
+    # -------------------------------------------------------------------------
+    # <Model construction section>
+    # -------------------------------------------------------------------------
+    if collision_model == "BGK":
+        # phase 1: constructing symbolic equations #
+        if drho_mode == 'rho':
+            feq_pipe = feq_raw_list
+            feq_subs = feq_exprs
+        else: # density shift
+            feq_pipe = feq_shift_list
+            feq_subs = [
+                feq_shift_list[i].xreplace({sp.Symbol(k): v for k, v in macro_exprs.items()}) # need to cast 'rho' as sp.Symbol('rho') 
+                for i in range(num_pops)
+            ]
+
+        f_new_map = { # collision modeling
+            f"f{i}": (f_syms[i] + omega_config[om_syms[1]] * (feq_syms[i] - f_syms[i]))
+            for i in range(num_pops)
+        }
+        pipe_exprs.update(macro_exprs)
+        pipe_exprs.update( {f'feq{q}': feq_pipe[q] for q in range(num_pops)} ) 
+        pipe_exprs['f'] = f_new_map
+
+        # phase 2: conversion to LBM code enpowered by CSE
+        subs_map = {feq_syms[i]: feq_subs[i] for i in range(num_pops)} # mapping feq0 -> (rho + 3*u...) for CSE
+        cse_targets = [ # substitute equations to feq (feq_syms)
+            expr.xreplace(subs_map) for expr in (list(macro_exprs.values()) + list(f_new_map.values()))
+        ] # <- xreplace is much faster than subs. xreplace is good enough for the present purpose
+        cse_targets = [sp.nsimplify(expr, tolerance=1e-15) for expr in cse_targets] # eliminate very small float value; 
+        replacements, reduced_exprs = sp.cse(cse_targets)
+        code_bundle = [replacements, reduced_exprs]
+
+
+    elif collision_model == "TRT":
+        # phase 1: constructing symbolic equations #
+        pipe_exprs.update(macro_exprs)
+
+        if drho_mode == 'rho':
+            feq_pipe = feq_raw_list
+            feq_subs = feq_exprs
+        else: # density shift
+            # note: rho -> 1 + drho
+            #              for coding simplicity, drho is written as rho
+            feq_shift_list = [f - w for f, w in zip(feq_raw_list, weights)] # shifted distribution
+            feq_shift_list = [ feq.xreplace({rho: density_shift + rho}) for feq in feq_shift_list ]
+
+            feq_pipe = feq_shift_list
+            feq_subs = [
+                feq_shift_list[i].xreplace({sp.Symbol(k): v for k, v in macro_exprs.items()}) # need to cast 'rho' as sp.Symbol('rho') 
+                for i in range(num_pops)
+            ]
+
+        pipe_exprs.update( {f'feq{q}': feq_pipe[q] for q in range(num_pops)} ) 
+
+        opp_map = {} # search opposite (-) direction
+        for i, v in enumerate(vectors):
+            opp_v = tuple(-c for c in v)
+            opp_map[i] = vectors.index(opp_v)
+
+        def generate_trt_collision(q, opp_q, om1, om2): # symbolic construction of collision terms
+            f_plus     = sp.simplify((f_syms[q]   + f_syms[opp_q]  ) * sp.Rational(1,2))
+            f_minus    = sp.simplify((f_syms[q]   - f_syms[opp_q]  ) * sp.Rational(1,2))
+            f_eq_plus  = sp.simplify((feq_syms[q] + feq_syms[opp_q]) * sp.Rational(1,2))
+            f_eq_minus = sp.simplify((feq_syms[q] - feq_syms[opp_q]) * sp.Rational(1,2))
+            collision_expr_q     = sp.simplify(- om1 * (f_plus  - f_eq_plus))
+            collision_expr_opp_q = sp.simplify(- om2 * (f_minus - f_eq_minus))
+            return collision_expr_q, collision_expr_opp_q
+
+        f_keys = list(sp.symbols(f'f:{num_pops}'))
+        f_new_list = {}
+
+        f_new_0 = f_syms[0] - omega_config[om_syms[1]] * (f_syms[0] - feq_syms[0]) 
+        f_new_list[f_keys[0]] = f_new_0
+        processed = set([0]) # to skip 0
+        for q, opp_q in opp_map.items():
+            if q in processed: continue
+            expr_q, expr_opp = generate_trt_collision( q, opp_q, omega_config[om_syms[1]], omega_config[om_syms[2]] )
+            f_new_list[f_keys[q]]     = f_syms[q]     + expr_q + expr_opp
+            f_new_list[f_keys[opp_q]] = f_syms[opp_q] + expr_q - expr_opp
+            processed.add(q)
+            processed.add(opp_q)
+        pipe_exprs['f_new'] = f_new_list
+
+        # phase 2: conversion to LBM code enpowered by CSE
+        cse_target_macro = list(macro_exprs.values())
+        cse_target_feq   = feq_subs # cse_target_feq   = feq_exprs
+        replacements_macro, reduced_macro = sp.cse(cse_target_macro, symbols=sp.symbols('xm0:500'))           
+        replacements_feq  , reduced_feq   = sp.cse(cse_target_feq, symbols=sp.symbols('xe0:1000'))
+        code_bundle = [
+            [replacements_macro, reduced_macro],
+            [replacements_feq, reduced_feq],
+            [f_keys, f_new_list],
+            [macro_keys, macro_exprs]
+        ]
+
+
+    elif collision_model == "MRT":        
+        u, v = vel_syms[0], vel_syms[1] # eliminate 4th order terms (u^4) generated from more accurate Gauss-Hermite approximation in f_eq
+        w = vel_syms[2] if len(vel_syms) > 2 else sp.Integer(0) 
+        high_order_subs = { # eliminating fourth-order tems u^4 from m_eq...
+            u**4: 0, v**4: 0, w**4: 0,
+            u**5: 0, v**5: 0, w**5: 0,
+            u**6: 0, v**6: 0, w**6: 0
+        }
+        M, M_inv = create_trans_matrix(moment_orders, vectors) # >>> Setting up transformation matrix from f to m
+
+        feq_list_4th = create_feq_list(dim, rho, vel_syms, vectors, weights, trunc=4) # constructing f_eq: (NOTE) f_eq generator retains 4th order (u^4) to derive correct m_eq (set trunc = 4)
+        if drho_mode == 'drho':
+            # note: rho -> 1 + drho
+            #              for coding simplicity, drho is written as rho
+            feq_list_4th = [ feq.xreplace({rho: density_shift + rho}) for feq in feq_list_4th ]
+
+        # phase 1: constructing symbolic equations #
+
+        # generating equilibrium moments meq = M feq
+        m_eq_computed = M * sp.Matrix(feq_list_4th) - M * sp.Matrix(weights) * density_shift # subtract M w in 'drho' mode
+        m_eq_dict = {name: sp.expand(expr) for name, expr in zip(mom_names, m_eq_computed)}
+
+        for name in m_eq_dict.keys():
+            m_eq_dict[name] = sp.expand(m_eq_dict[name]).subs(high_order_subs)
+
+        # constructing collision/relaxation equations...
+        processed_diagonal_2nd = set()
+        processed_diagonal_3a4 = set()
+        for o, name in zip(moment_orders, mom_names):
+            total_order = sum(o)
+            max_order = max(o)
+            min_order = min(o)
+            max_idx = max(o) if o else 0
+            meq = sp.Symbol(f"{name}_eq")
+            if total_order <= 1:
+                M_post[o] = M_raw[o]
+            elif total_order == 2:
+                if max_idx == 1:
+                    M_post[o] = M_raw[o] + omega_config[om_syms[1]] * (meq - M_raw[o])
+                elif max_idx == 2:
+                    if name in processed_diagonal_2nd: continue
+                    if dim == 2:
+                        mP_eq, mxx_eq = sp.symbols("mP_eq mxx_eq")
+                        mP  = M_raw[(2,0)] + M_raw[(0,2)]
+                        mxx = M_raw[(2,0)] - M_raw[(0,2)]
+                        m_eq_dict["mP"]   = (m_eq_dict["m20"] + m_eq_dict["m02"])
+                        m_eq_dict["mxx"]  = (m_eq_dict["m20"] - m_eq_dict["m02"])
+                        mP_post  = (mP  + omega_config[om_syms[2]] * (mP_eq  - mP))
+                        mxx_post = (mxx + omega_config[om_syms[1]] * (mxx_eq - mxx))
+                        M_post[(2,0)] = (sp.Rational(1, 2) * (mP_post + mxx_post))
+                        M_post[(0,2)] = (sp.Rational(1, 2) * (mP_post - mxx_post))
+                        processed_diagonal_2nd.update(["m20", "m02"])
+                    elif dim == 3:
+                        mP_eq, mxx_eq, mzz_eq = sp.symbols("mP_eq mxx_eq mzz_eq")
+                        mxx = M_raw[(2,0,0)] - M_raw[(0,2,0)]
+                        mzz = M_raw[(2,0,0)] - M_raw[(0,0,2)]
+                        mP  = M_raw[(2,0,0)] + M_raw[(0,2,0)] + M_raw[(0,0,2)]
+                        m_eq_dict["mxx"] = (m_eq_dict["m200"] - m_eq_dict["m020"])
+                        m_eq_dict["mzz"] = (m_eq_dict["m200"] - m_eq_dict["m002"])
+                        m_eq_dict["mP"]  = (m_eq_dict["m200"] + m_eq_dict["m020"] + m_eq_dict["m002"])
+                        mxx_post = (mxx  + omega_config[om_syms[1]] * (mxx_eq - mxx))
+                        mzz_post = (mzz  + omega_config[om_syms[1]] * (mzz_eq - mzz))
+                        mP_post  = (mP   + omega_config[om_syms[2]] * (mP_eq  - mP))
+                        M_post[(2,0,0)] = ((mP_post + mxx_post + mzz_post) / 3)
+                        M_post[(0,2,0)] = ((mP_post - 2 * mxx_post + mzz_post) / 3)
+                        M_post[(0,0,2)] = ((mP_post + mxx_post - 2 * mzz_post) / 3)
+                        processed_diagonal_2nd.update(["m200", "m020", "m002"])
+            elif total_order >= 3:
+                if dim == 2:
+                    current_omega = omega_config[om_syms[6]] if total_order >= 4 else omega_config[om_syms[3]]
+                    if current_omega == 1:
+                        M_post[o] = meq
+                    else:
+                        M_post[o] = M_raw[o] + current_omega * (meq - M_raw[o])
+                else: # 3D
+                    current_omega = sp.Rational(1.0)
+                    if total_order == 6: # 222
+                        current_omega = omega_config[om_syms[10]]
+                    elif total_order == 5: # 221, 212, 122
+                        current_omega = omega_config[om_syms[9]]
+                    elif total_order == 4: # 211, 121, 112
+                        current_omega = omega_config[om_syms[8]]
+                    elif total_order == 3:
+                        if min_order == 1: # 111
+                            current_omega = omega_config[om_syms[5]] 
+                        else: # 120, 102, 210, 012, 201, 021
+                            m120_eq, m102_eq = m_eq_dict["m120"], m_eq_dict["m102"]
+                            m210_eq, m012_eq = m_eq_dict["m210"], m_eq_dict["m012"]
+                            m201_eq, m021_eq = m_eq_dict["m201"], m_eq_dict["m021"]
+                            sum1_post  = (1 - omega_config[om_syms[3]]) * (M_raw[(1,2,0)] + M_raw[(1,0,2)]) + (m120_eq + m102_eq)
+                            sum2_post  = (1 - omega_config[om_syms[3]]) * (M_raw[(2,1,0)] + M_raw[(0,1,2)]) + (m210_eq + m012_eq)
+                            sum3_post  = (1 - omega_config[om_syms[3]]) * (M_raw[(2,0,1)] + M_raw[(0,2,1)]) + (m201_eq + m021_eq)
+                            diff1_post = (1 - omega_config[om_syms[4]]) * (M_raw[(1,2,0)] - M_raw[(1,0,2)]) + (m120_eq - m102_eq)
+                            diff2_post = (1 - omega_config[om_syms[4]]) * (M_raw[(2,1,0)] - M_raw[(0,1,2)]) + (m210_eq - m012_eq)
+                            diff3_post = (1 - omega_config[om_syms[4]]) * (M_raw[(2,0,1)] - M_raw[(0,2,1)]) + (m201_eq - m021_eq)
+                            M_post[(1,2,0)] = (sum1_post + diff1_post) / 2
+                            M_post[(2,1,0)] = (sum2_post + diff2_post) / 2
+                            M_post[(2,0,1)] = (sum3_post + diff3_post) / 2
+                            M_post[(1,0,2)] = (sum1_post - diff1_post) / 2
+                            M_post[(0,1,2)] = (sum2_post - diff2_post) / 2
+                            M_post[(0,2,1)] = (sum3_post - diff3_post) / 2
+                            processed_diagonal_3a4.update(["m120","m210","m201","m102","m012","m021"])
+
+                    elif total_order == 2:
+                        if min_order == 1: # 110, 101, 011
+                            current_omega = omega_config[om_syms[1]]
+                        else: # 200, 020, 002
+                            processed_diagonal_3a4.update(["m200","m020","m002"])
+
+                    elif total_order == 4 and min_order == 0: # 220, 202, 022
+                        cross1_post = (M_raw[(2,2,0)] - 2 * M_raw[(2,0,2)] +     M_raw[(0,2,2)]) * (1.0 - omega_config[om_syms[6]])
+                        cross2_post = (M_raw[(2,2,0)] +     M_raw[(2,0,2)] - 2 * M_raw[(0,2,2)]) * (1.0 - omega_config[om_syms[6]])
+                        cross3_post = (M_raw[(2,2,0)] +     M_raw[(2,0,2)]     + M_raw[(0,2,2)]) * (1.0 - omega_config[om_syms[7]])
+                        M_post[(2,2,0)] = (   cross1_post + cross2_post + cross3_post ) / 3
+                        M_post[(2,0,2)] = ( - cross1_post               + cross3_post ) / 3
+                        M_post[(0,2,2)] = (               - cross2_post + cross3_post ) / 3
+                        processed_diagonal_3a4.update(["m220","m202","m022"])
+
+                    if name in processed_diagonal_3a4: 
+                        continue
+                    else:
+                        if current_omega == 1.0:
+                            M_post[o] = meq
+                        else:
+                            M_post[o] = M_raw[o] + current_omega * (meq - M_raw[o])
+
+        m_post_syms = sp.symbols([f'{name}_post' for name in mom_names]) # computing post-collision f as M^(-1) m
+        f_new_expr  = M_inv * sp.Matrix(m_post_syms)
+
+        pipe_exprs.update( {f'feq4th{q}': feq_list_4th[q] for q in range(num_pops)} ) 
+        pipe_exprs['M']     = M
+        pipe_exprs['M_inv'] = M_inv
+        pipe_exprs.update( m_eq_dict )
+        pipe_exprs.update( M_post )
+        pipe_exprs.update( {f'f{q}': f_new_expr[q] for q in range(num_pops)} )
+
+        # phase 2: conversion to LBM code enpowered by CSE
+        m_exprs = [] # forward transformation from f to m
+        # by definition m_ijk = sum cx^{i} cy^{j} cz^{k} f 
+        for order in moment_orders:
+            expr = 0
+            for idx, vec in enumerate(vectors):
+                term = 1
+                for c, alpha in zip(vec, order):
+                    term *= (c ** alpha)
+                expr += term * f_syms[idx]
+            m_exprs.append(expr)
+
+        replacements, reduced = sp.cse(m_exprs) # applying CSE to forward transformation from f to m
+        inv_replacements, inv_reduced = sp.cse(list(f_new_expr)) # applying CSE to forward transformation from m to f
+
+        code_bundle = [
+            [replacements, reduced], 
+            [inv_replacements, inv_reduced],
+            vel_names,
+            [m_eq_dict, moment_orders, mom_names, M_post]
+        ]
+
+
+    elif collision_model == "Cumulant":
+        # preparation for drho_mode = 'drho': transformed weight vector : M w
+        M, M_inv = create_trans_matrix(moment_orders, vectors) # >>> Setting up transformation matrix from f to m
+        w_vec = M * sp.Matrix(weights) * density_shift # M w in 'drho' mode
+        order_to_weight = {order: w_vec[i] for i, order in enumerate(moment_orders)}
+
+        # phase 1: constructing symbolic equations #
+        one = sp.Integer(1)
+        orders_2nd = [o for o in moment_orders if sum(o) == 2]
+        orders_3rd = [o for o in moment_orders if sum(o) == 3]
+        orders_4th = [o for o in moment_orders if sum(o) == 4]
+        orders_5th = [o for o in moment_orders if sum(o) == 5]
+        orders_6th = [o for o in moment_orders if sum(o) == 6]
+
+        first_chimera, second_chimera, v_map, pipe_exprs = chimera_moment(dim, vectors, pipe_exprs) 
+        moment_chimera = [first_chimera, second_chimera] # forward transformation from f to central moment/cumulant
+
+        # register all 0th and 1st order moments and kappa # -> # like (0,0,0), (0,1,0) and so on
+        macro_orders = [(0,0,0), (1,0,0), (0,1,0), (0,0,1)] if dim == 3 else [(0,0), (1,0), (0,1)]
+        for o in macro_orders:
+            raw_expr, _ = generate_central_moment_expr(dim, o, rho, vel_syms, moment_chimera, moments_pack)
+            pipe_exprs[M_raw[o]] = raw_expr + order_to_weight[o]
+
+        # register all 2nd and 3rd order moments and kappa # -> # like (2,0,0), (2,1,1) and so on
+        for o in orders_2nd + orders_3rd:
+            raw_expr, cen_expr = generate_central_moment_expr(dim, o, rho, vel_syms, moment_chimera, moments_pack)
+            pipe_exprs[M_raw[o]] = raw_expr + order_to_weight[o]
+            pipe_exprs[K_cen[o]] = cen_expr
+
+        # collision/relaxation process in Cumulant space
+        cross_orders_2nd = [o for o in orders_2nd if max(o) == 1]
+        for o in cross_orders_2nd:
+            relaxation_expr = K_cen[o] + omega_config[om_syms[1]] * (0 - K_cen[o])
+            pipe_exprs[K_post[o]] = sp.simplify(relaxation_expr)
+
+        kappa_diag_eq = sp.Rational(1, 3) * rho # isotropic component (pressure): rho * cs**2 = rho / 3
+        if dim == 2:
+            trace_mode = K_cen[(2, 0)] + K_cen[(0, 2)]
+            trace_eq   = 2 * kappa_diag_eq # trace of eqilibrium values: 2 * rho / 3
+            trace_post = trace_mode + omega_config[om_syms[2]] * (trace_eq - trace_mode)
+            
+            diff_mode  = K_cen[(2, 0)] - K_cen[(0, 2)]
+            diff_post  = diff_mode + omega_config[om_syms[1]] * (0 - diff_mode)
+            
+            pipe_exprs[K_post[(2, 0)]] = sp.simplify((trace_post + diff_post) * sp.Rational(1, 2))
+            pipe_exprs[K_post[(0, 2)]] = sp.simplify((trace_post - diff_post) * sp.Rational(1, 2))
+        else:
+            trace_mode = K_cen[(2,0,0)] + K_cen[(0,2,0)] + K_cen[(0,0,2)]
+            trace_eq   = 3 * kappa_diag_eq # trace of eqilibrium values: 3 * (rho/3) = rho
+            trace_post = trace_mode + omega_config[om_syms[2]] * (trace_eq - trace_mode)
+
+            diff1_mode = (K_cen[(2,0,0)] - K_cen[(0,2,0)])
+            diff1_post = diff1_mode + omega_config[om_syms[1]] * (0 - diff1_mode)        
+            diff2_mode = (K_cen[(2,0,0)] + K_cen[(0,2,0)] - 2 * K_cen[(0,0,2)])
+            diff2_post = diff2_mode + omega_config[om_syms[1]] * (0 - diff2_mode)
+
+            pipe_exprs[K_post[(2,0,0)]] = sp.simplify((2 * trace_post + 3 * diff1_post + diff2_post) * sp.Rational(1, 6))
+            pipe_exprs[K_post[(0,2,0)]] = sp.simplify((2 * trace_post - 3 * diff1_post + diff2_post) * sp.Rational(1, 6))
+            pipe_exprs[K_post[(0,0,2)]] = sp.simplify((trace_post - diff2_post) * sp.Rational(1, 3))
+
+        if dim == 2:
+            for o in orders_3rd: # goes to zero equilibria
+                relaxation_expr = K_cen[o] + omega_config[om_syms[3]] * (sp.Integer(0) - K_cen[o])
+                pipe_exprs[K_post[o]] = sp.simplify(relaxation_expr)
+        else: 
+            # 120, 102, 210, 012, 201, 021
+            sum1_post  = (one - omega_config[om_syms[3]]) * (K_cen[(1,2,0)] + K_cen[(1,0,2)])
+            sum2_post  = (one - omega_config[om_syms[3]]) * (K_cen[(2,1,0)] + K_cen[(0,1,2)])
+            sum3_post  = (one - omega_config[om_syms[3]]) * (K_cen[(2,0,1)] + K_cen[(0,2,1)])
+            diff1_post = (one - omega_config[om_syms[4]]) * (K_cen[(1,2,0)] - K_cen[(1,0,2)])
+            diff2_post = (one - omega_config[om_syms[4]]) * (K_cen[(2,1,0)] - K_cen[(0,1,2)])
+            diff3_post = (one - omega_config[om_syms[4]]) * (K_cen[(2,0,1)] - K_cen[(0,2,1)])
+            pipe_exprs[K_post[(1,2,0)]] = sp.simplify((sum1_post + diff1_post) * sp.Rational(1, 2))
+            pipe_exprs[K_post[(2,1,0)]] = sp.simplify((sum2_post + diff2_post) * sp.Rational(1, 2))
+            pipe_exprs[K_post[(2,0,1)]] = sp.simplify((sum3_post + diff3_post) * sp.Rational(1, 2))
+            pipe_exprs[K_post[(1,0,2)]] = sp.simplify((sum1_post - diff1_post) * sp.Rational(1, 2))
+            pipe_exprs[K_post[(0,1,2)]] = sp.simplify((sum2_post - diff2_post) * sp.Rational(1, 2))
+            pipe_exprs[K_post[(0,2,1)]] = sp.simplify((sum3_post - diff3_post) * sp.Rational(1, 2))
+
+            # 111 
+            o = (1,1,1)
+            pipe_exprs[K_post[o]] = sp.simplify( (one - omega_config[om_syms[5]]) * K_cen[o] )
+
+        # cumulant transformation for orders higher than 3
+        all_higher_orders = orders_4th + orders_5th + orders_6th
+        special_4th_cross = {(2, 2, 0), (2, 0, 2), (0, 2, 2)}
+        if dim == 3:
+            for o in special_4th_cross:
+                raw_expr, cen_expr = generate_central_moment_expr(dim, o, rho, vel_syms, moment_chimera, moments_pack)
+                pipe_exprs[M_raw[o]] = raw_expr + order_to_weight[o]
+                pipe_exprs[K_cen[o]] = cen_expr
+                
+                c_expr, k_post_expr = generate_cumulant_from_central(o, rho, cumulants_pack)
+                pipe_exprs[C_cum[o]] = c_expr
+
+            cross1_post = (C_cum[(2,2,0)] - 2 * C_cum[(2,0,2)] + C_cum[(0,2,2)]) * (one - omega_config[om_syms[6]])
+            cross2_post = (C_cum[(2,2,0)] + C_cum[(2,0,2)] - 2 * C_cum[(0,2,2)]) * (one - omega_config[om_syms[6]])
+            cross3_post = (C_cum[(2,2,0)] + C_cum[(2,0,2)] + C_cum[(0,2,2)]) * (one - omega_config[om_syms[7]])
+            pipe_exprs[C_post[(2,2,0)]] = sp.simplify( (   cross1_post + cross2_post + cross3_post ) * sp.Rational(1, 3) )
+            pipe_exprs[C_post[(2,0,2)]] = sp.simplify( ( - cross1_post               + cross3_post ) * sp.Rational(1, 3) )
+            pipe_exprs[C_post[(0,2,2)]] = sp.simplify( ( - cross2_post               + cross3_post ) * sp.Rational(1, 3) )
+
+            for o in special_4th_cross:
+                _, k_post_expr = generate_cumulant_from_central(o, rho, cumulants_pack)
+                pipe_exprs[K_post[o]] = k_post_expr
+
+        processed = False
+        for o in all_higher_orders:
+            if dim == 2: # (2, 2) is the only case for 2D, and C22_eq = 0
+                if processed:
+                    pass
+                else:
+                    raw_expr, cen_expr = generate_central_moment_expr(dim, o, rho, vel_syms, moment_chimera, moments_pack)
+                    c_expr, k_post_expr = generate_cumulant_from_central(o, rho, cumulants_pack)
+                    if omega_config[om_syms[6]] == 1.0:
+                        pipe_exprs[C_post[o]] = sp.Integer(0)
+                        pass
+                    else:
+                        pipe_exprs[M_raw[o]] = raw_expr + order_to_weight[o]
+                        pipe_exprs[K_cen[o]] = cen_expr
+
+                        pipe_exprs[C_cum[o]] = c_expr
+                        pipe_exprs[C_post[o]] = sp.simplify( (one - omega_config[om_syms[6]]) * C_cum[o] )
+                    pipe_exprs[K_post[o]] = k_post_expr
+                continue
+
+            if dim == 3 and o in special_4th_cross:
+                continue
+
+            raw_expr, cen_expr = generate_central_moment_expr(dim, o, rho, vel_syms, moment_chimera, moments_pack)
+            pipe_exprs[M_raw[o]] = raw_expr + order_to_weight[o]
+            pipe_exprs[K_cen[o]] = cen_expr
+            
+            c_expr, k_post_expr = generate_cumulant_from_central(o, rho, cumulants_pack)
+            pipe_exprs[C_cum[o]] = c_expr
+
+            current_omega = omega_config[om_syms[8]]
+            if sum(o) == 5: current_omega = omega_config[om_syms[9]]
+            elif sum(o) == 6: current_omega = omega_config[om_syms[10]]
+
+            pipe_exprs[C_post[o]] = sp.simplify( (one - current_omega) * C_cum[o] )
+            pipe_exprs[K_post[o]] = k_post_expr
+
+        # cleanup for omega = 1 case
+        if dim == 3:
+            for o in all_higher_orders:
+                if o in special_4th_cross:
+                    continue
+
+                current_omega = omega_config[om_syms[8]]
+                if sum(o) == 5: current_omega = omega_config[om_syms[9]]
+                elif sum(o) == 6: current_omega = omega_config[om_syms[10]]
+
+                if current_omega == 1.0:
+                    pipe_exprs[C_post[o]] = sp.Integer(0)
+                    if sum(o) < 6:
+                        pipe_exprs[K_post[o]] = sp.Integer(0) # NOTE: kappa222_post is non zero so keep it
+                    else: # C222_post = 0, therefore m222, kappa222 and C222 are not required
+                        del pipe_exprs[M_raw[o]]
+                        del pipe_exprs[K_cen[o]]
+                        del pipe_exprs[C_cum[o]]
+
+        # backward Transformation from c_post to m_post
+        pipe_exprs = back_trans_kappa_to_raw(dim, moment_orders, vel_syms, K_post, M_post, pipe_exprs) # backward transform: kappa to moment
+
+        # shift post-collision raw moment to "shifted" raw moment before transforming back to f
+        # this process does do nothing if drho_mode is 'rho'
+        for o in moment_orders:
+            if M_post[o] in pipe_exprs:
+                    pipe_exprs[M_post[o]] -= order_to_weight[o]
+
+        # backward Transformation from m_post to f_post
+        pipe_exprs, f_post_exprs = back_trans_raw_to_f(dim, v_map, M_post, pipe_exprs) # backward transform: moment to f
+
+        # phase 2: conversion to LBM code enpowered by CSE
+        cse_target_macro = list(macro_exprs.values())
+        replacements_macro, reduced_macro = sp.cse(cse_target_macro, symbols=sp.symbols('xm0:500'))           
+
+        cleaned_pipe_exprs = {} # clean 0!
+        for k, v in pipe_exprs.items():
+            expr_expanded = sp.expand(v)
+            if expr_expanded == 0 and not k.name.startswith("f_post_idx_"):
+                continue
+            cleaned_pipe_exprs[k] = expr_expanded
+        removed_symbols = {k: sp.Integer(0) for k, v in pipe_exprs.items() if sp.expand(v) == 0 and not k.name.startswith("f_post_idx_")}
+        
+        final_pipe_exprs = {}
+        for k, v in cleaned_pipe_exprs.items():
+            final_pipe_exprs[k] = v.subs(removed_symbols)
+
+        equations = list(final_pipe_exprs.items())
+        replacements, reduced_exprs = sp.cse(equations, symbols=sp.symbols('x0:5000'))
+
+        all_assignments = replacements + reduced_exprs
+
+        code_bundle = [all_assignments, [replacements_macro, reduced_macro], macro_keys, vel_names]
+
+        # -------------------------------------------------------------------------
+        # <----------------------------------------------------- model construction
+        # -------------------------------------------------------------------------
+
+    # Boltzmann in the discretizaed world #
+    def export_pipe(pipe, indent_str): # helper to write out symbolic equations #
+        for key, val in pipe.items():
+            if isinstance(val, dict):
+                export_pipe(val, indent_str)
+            else:
+                print(f"{indent_str}{key} = {val}")
+
+    if not (silent):
+        print(f"\n# distributions: {f_syms}\n")
+        if collision_model == "MRT" or collision_model == "Cumulant":
+            print(f"\n# orders of moments: {moment_orders}\n\n")
+        export_pipe(pipe_exprs, "") # export symblic equations
+
+    replacements_eq, reduced_eq = sp.cse(feq_function, symbols=sp.symbols('xeq0:1000'))
+    f_eq_pack = [replacements_eq, reduced_eq]
+
+    # generate code #
+    with TypeWriter(output_filename, collision_model, drho_mode, default_pack, misc_pack, code_bundle, f_eq_pack) as code_writer:
+        code_writer.write()
+
+
+    print(f"# ")
+    print(f"# This is {collision_model} generator reporting;")
+    print(f"# Generated code has been saved as {output_filename}")
+    print(f"# Enjoy LB simulations!")
+    print(f"# ")
+    print(f"# tips: if you need to check the lb equations running, set silent=False.")
+    print(f"# ")
+
+
+if __name__ == "__main__":
+    run_generator(collision_model="Cumulant", output_filename="lb_solver/generated_kernel.py")

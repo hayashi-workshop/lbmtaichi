@@ -1,0 +1,154 @@
+# -*- coding: utf-8 -*-
+# ======================================================================================
+# This code was generated with SymPy CSE code generator
+# Discr: D2Q9
+# Model: Cumulant
+# Some intermediate variable names are inspired by the naming conventions used in lbmpy.
+# ======================================================================================
+
+import taichi as ti
+import taichi.math as tm
+
+@ti.data_oriented
+class ModelConfig:
+    def __init__(self):
+        #self.weights = ti.types.vector(9, float)([4.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0])
+        self.c = (ti.Vector([0, 0]), ti.Vector([1, 0]), ti.Vector([0, 1]), ti.Vector([-1, 0]), ti.Vector([0, -1]), ti.Vector([1, 1]), ti.Vector([-1, 1]), ti.Vector([-1, -1]), ti.Vector([1, -1]))
+        self.density_shift = 0.0
+        self._set_rational()
+
+
+    @ti.kernel
+    def col_stream_core(self, lbm: ti.template(), f_pre: ti.template(), f_post: ti.template()):
+        for I in ti.grouped(lbm.rho):
+            # Streaming & Fetch (pull algorithm)
+            f0 = f_pre[I - self.c[0]][0]
+            f1 = f_pre[I - self.c[1]][1]
+            f2 = f_pre[I - self.c[2]][2]
+            f3 = f_pre[I - self.c[3]][3]
+            f4 = f_pre[I - self.c[4]][4]
+            f5 = f_pre[I - self.c[5]][5]
+            f6 = f_pre[I - self.c[6]][6]
+            f7 = f_pre[I - self.c[7]][7]
+            f8 = f_pre[I - self.c[8]][8]
+
+            xm0 = f1 + f8
+            xm1 = f2 + f6
+            xm2 = f0 + f3 + f4 + f5 + f7 + xm0 + xm1
+            xm3 = 1/xm2
+            xm4 = f5 - f7
+            rho = xm2 + 1 # real (un-shifted) density
+            u = xm3*(-f3 - f6 + xm0 + xm4)
+            v = xm3*(-f4 - f8 + xm1 + xm4)
+            inv_rho = 1.0 / rho
+            # forward chimera transform & macroscopic quantities
+            chimera_m_m1_c_0 = f3 + f6 + f7
+            chimera_m_m1_c_1 = f6 - f7
+            chimera_m_m1_c_2 = f6 + f7
+            chimera_m_0_c_0 = f0 + f2 + f4
+            chimera_m_0_c_1 = f2 - f4
+            chimera_m_0_c_2 = f2 + f4
+            chimera_m_1_c_0 = f1 + f5 + f8
+            chimera_m_1_c_1 = f5 - f8
+            chimera_m_1_c_2 = f5 + f8
+            m20 = chimera_m_1_c_0 + chimera_m_m1_c_0
+            kappa20 = m20 - rho*u**2
+            m11 = chimera_m_1_c_1 - chimera_m_m1_c_1
+            kappa11 = m11 - rho*u*v
+            m02 = chimera_m_0_c_2 + chimera_m_1_c_2 + chimera_m_m1_c_2
+            kappa02 = m02 - rho*v**2
+            m21 = chimera_m_1_c_1 + chimera_m_m1_c_1
+            kappa21 = -2*kappa11*u - kappa20*v + m21 - rho*u**2*v
+            m12 = chimera_m_1_c_2 - chimera_m_m1_c_2
+            kappa12 = -kappa02*u - 2*kappa11*v + m12 - rho*u*v**2
+            kappa11_post = -kappa11*lbm.omega[1] + kappa11
+            kappa20_post = kappa02*lbm.omega[1] * 0.5 - kappa02*lbm.omega[2] * 0.5 - kappa20*lbm.omega[1] * 0.5 - kappa20*lbm.omega[2] * 0.5 + kappa20 + lbm.omega[2]*rho * self.INV_3
+            kappa02_post = -kappa02*lbm.omega[1] * 0.5 - kappa02*lbm.omega[2] * 0.5 + kappa02 + kappa20*lbm.omega[1] * 0.5 - kappa20*lbm.omega[2] * 0.5 + lbm.omega[2]*rho * self.INV_3
+            kappa21_post = -kappa21*lbm.omega[3] + kappa21
+            kappa12_post = -kappa12*lbm.omega[3] + kappa12
+            m22 = chimera_m_1_c_2 + chimera_m_m1_c_2
+            kappa22 = -2*kappa12*u - 2*kappa21*v + m22 - rho*u**2*v**2
+            C22 = -kappa02*kappa20 * inv_rho - 2*kappa11**2 * inv_rho + kappa22
+            C22_post = -C22*lbm.omega[6] + C22
+            kappa22_post = C22_post + kappa02_post*kappa20_post * inv_rho + 2*kappa11_post**2 * inv_rho
+            m_post_idx_0_c_0 = rho
+            m_post_idx_0_c_1 = rho*v
+            m_post_idx_0_c_2 = kappa02_post + rho*v**2
+            m_post_idx_1_c_1 = kappa11_post
+            m_post_idx_1_c_2 = 2*kappa11_post*v + kappa12_post
+            m_post_idx_2_c_0 = kappa20_post
+            m_post_idx_2_c_1 = kappa20_post*v + kappa21_post
+            m_post_idx_2_c_2 = kappa20_post*v**2 + 2*kappa21_post*v + kappa22_post
+            m00_post = m_post_idx_0_c_0
+            m01_post = m_post_idx_0_c_1
+            m02_post = m_post_idx_0_c_2
+            m10_post = m_post_idx_0_c_0*u
+            m11_post = m_post_idx_0_c_1*u + m_post_idx_1_c_1
+            m12_post = m_post_idx_0_c_2*u + m_post_idx_1_c_2
+            m20_post = m_post_idx_0_c_0*u**2 + m_post_idx_2_c_0
+            m21_post = m_post_idx_0_c_1*u**2 + 2*m_post_idx_1_c_1*u + m_post_idx_2_c_1
+            m22_post = m_post_idx_0_c_2*u**2 + 2*m_post_idx_1_c_2*u + m_post_idx_2_c_2
+            chimera_m_post_0_0 = m00_post - m20_post
+            chimera_m_post_m1_0 = -m10_post * 0.5 + m20_post * 0.5
+            chimera_m_post_1_0 = m10_post * 0.5 + m20_post * 0.5
+            chimera_m_post_0_1 = m01_post - m21_post
+            chimera_m_post_m1_1 = -m11_post * 0.5 + m21_post * 0.5
+            chimera_m_post_1_1 = m11_post * 0.5 + m21_post * 0.5
+            chimera_m_post_0_2 = m02_post - m22_post
+            chimera_m_post_m1_2 = -m12_post * 0.5 + m22_post * 0.5
+            chimera_m_post_1_2 = m12_post * 0.5 + m22_post * 0.5
+            f_post[I][0] = chimera_m_post_0_0 - chimera_m_post_0_2
+            f_post[I][1] = chimera_m_post_1_0 - chimera_m_post_1_2
+            f_post[I][2] = chimera_m_post_0_1 * 0.5 + chimera_m_post_0_2 * 0.5
+            f_post[I][3] = chimera_m_post_m1_0 - chimera_m_post_m1_2
+            f_post[I][4] = -chimera_m_post_0_1 * 0.5 + chimera_m_post_0_2 * 0.5
+            f_post[I][5] = chimera_m_post_1_1 * 0.5 + chimera_m_post_1_2 * 0.5
+            f_post[I][6] = chimera_m_post_m1_1 * 0.5 + chimera_m_post_m1_2 * 0.5
+            f_post[I][7] = -chimera_m_post_m1_1 * 0.5 + chimera_m_post_m1_2 * 0.5
+            f_post[I][8] = -chimera_m_post_1_1 * 0.5 + chimera_m_post_1_2 * 0.5
+
+            # update arrays of macroscopic vars
+            lbm.rho[I] = xm2
+            lbm.vel[I][0] = u
+            lbm.vel[I][1] = v
+
+    @ti.func
+    def f_eq(self, lbm, I):
+        rho = lbm.rho[I] # <- note: actual value stored here is rho - density_shift
+        u = lbm.vel[I][0]
+        v = lbm.vel[I][1]
+
+        xeq0 = v**2
+        xeq1 = 3*xeq0 * 0.5
+        xeq2 = u**2
+        xeq3 = 3*xeq2 * 0.5
+        xeq4 = xeq3 - 1
+        xeq5 = xeq1 + xeq4
+        xeq6 = 3*u
+        xeq7 = -xeq1
+        xeq8 = 3*xeq2 + xeq7 + 1
+        xeq9 = rho * self.INV_9
+        xeq10 = 3*v
+        xeq11 = xeq10 - xeq3 + 1
+        xeq12 = -xeq6
+        xeq13 = u + v
+        xeq14 = rho * self.INV_36
+        xeq15 = u - v
+        xeq16 = xeq5 + xeq6
+
+        return ti.Vector([
+            -4*rho*xeq5 * self.INV_9,
+            xeq9*(xeq6 + xeq8),
+            xeq9*(3*xeq0 + xeq11),
+            xeq9*(xeq12 + xeq8),
+            xeq9*(3*xeq0 - xeq10 - xeq4),
+            xeq14*(xeq11 + 9*xeq13**2 * 0.5 + xeq6 + xeq7),
+            xeq14*(xeq10 + 9*xeq15**2 * 0.5 - xeq16),
+            xeq14*(-xeq10 + 9*xeq13**2 * 0.5 - xeq16),
+            xeq14*(-xeq10 - xeq12 + 9*xeq15**2 * 0.5 - xeq5),
+        ])
+
+    def _set_rational(self):
+        self.INV_9 = 1.0/9.0
+        self.INV_3 = 1.0/3.0
+        self.INV_36 = 1.0/36.0
