@@ -18,7 +18,7 @@ The codes within this repository were developed using Macbook Air Apple Silicon 
 
 ### Prepare virtual environment
 
-Anaconda virtual environment can be recommended to prevent contaminating your syste. After installation of `Anaconda3`, make your own environment for `lbmtaichi` by 
+Anaconda virtual environment can be recommended to prevent affecting your syste. After installation of `Anaconda3`, make your own environment for `lbmtaichi` by 
 
 ```bash
 conda create -n taichi_env python=3.10 -y
