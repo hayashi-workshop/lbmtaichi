@@ -25,7 +25,7 @@ conda create -n taichi_env python=3.10 -y
 conda activate taichi_env
 ```
 
-In the virtual environment, 
+In the virtual environment ([!NOTE] after installation of Taichi), 
 ```
 ti
 ```
@@ -42,7 +42,7 @@ The project requires `numpy`, `sympy` and `taichi` libraries. They can be instal
 git clone https://github.com/hayashi-workshop/lbmtaichi.git
 cd lbmtaichi
 export REPO_PATH=$(pwd)
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 After installation, I recommend taking a glance at Taichi sample gallery. 
