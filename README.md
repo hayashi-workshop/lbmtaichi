@@ -39,7 +39,7 @@ The portability of the code was confirmed for `cuda` on RTX A4500.
 The project requires `numpy`, `sympy` and `taichi` libraries. They can be installed by making use of `requirements.txt`. 
 
 ```bash
-git clone https://github.com/hayashi-workshop/lbmtaichi.git
+git clone https://github.com/hayashi-workshop/clbmtaichi.git
 cd lbmtaichi
 export REPO_PATH=$(pwd)
 pip install -r requirements.txt
