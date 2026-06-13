@@ -40,7 +40,7 @@ The project requires `numpy`, `sympy` and `taichi` libraries. They can be instal
 
 ```bash
 git clone https://github.com/hayashi-workshop/clbmtaichi.git
-cd lbmtaichi
+cd clbmtaichi
 export REPO_PATH=$(pwd)
 pip install -r requirements.txt
 ```
