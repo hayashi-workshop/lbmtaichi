@@ -3,6 +3,7 @@
 
 #project
 output/
+playground/
 lb_solver/generated_kernel.py
 imgui.ini
 
