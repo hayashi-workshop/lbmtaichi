@@ -161,6 +161,8 @@ from lb_utils.lbm_utils import save_vtk
 
 ## Irregular shape
 
+### Johansen-Collela
+
 A star-like shape in [JC1998] as embedded solid boundary. See [samples/JCprob1.py](../samples/JCprob1.py). 
 
 <img src="../img/JCprob1.png"><img>
@@ -169,3 +171,8 @@ The narrow gaps between the object and the wall causes strong vortical motion, f
 
 [JC1998] Johansen and Colella. Journal of Computational Physics, 147(1):60–85, 1998.
 
+### Stanford bunny
+
+(241, 121, 121); length_scale = 60; offset = (50, 0, 30); u, Re = 0.1, 40000
+
+<img src="../img/stanford_bunny_vtk.png" width=600></img>
