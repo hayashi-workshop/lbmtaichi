@@ -7,7 +7,7 @@ cd $REPO_PATH
 PYTHONPATH=. python samples/object2d.py
 ```
 
-Use `PYTHONPATH=.` to resolve the library paths for samples/*.py launched from root dir. 
+Use `PYTHONPATH=.` to solve the library paths for samples/*.py launched from root dir. 
 
 ## Flow past a sphere
 
