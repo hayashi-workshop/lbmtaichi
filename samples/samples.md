@@ -173,8 +173,15 @@ The narrow gaps between the object and the wall causes strong vortical motion, f
 
 ### Stanford bunny
 
-(241, 121, 121); length_scale = 60; offset = (50, 0, 30); u, Re = 0.1, 40000
+(241, 121, 121); length_scale = 60; offset = (50, 0, 30); (u, Re) = (0.1, 40000)
 
 <img src="../img/stanford_bunny_vtk.png" width=600></img>
 
 Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field.
+
+In order to use trimesh, install the following packages to your virtual environment: 
+
+```bash
+pip install 'trimesh[easy]'
+pip install networkx
+```
