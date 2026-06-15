@@ -30,7 +30,7 @@ PYTHONPATH=. python samples/cavity3d.py
 
 ## Change domain size
 
-Let us try the standard square cavity flow. Copy the cavity flow sample as `cavity2d_std.py`
+Let us try the standard square cavity flow. Copy the cavity flow sample as [`cavity2d_std.py`](./cavity2d_std.py)
 
 ```bash
 cp samples/cavity2d.py samples/cavity2d_std.py
@@ -106,7 +106,7 @@ while renderer.window.running and step < step_end:
 
 ## MLUPS monitoring
 
-MLUPS is (total number of lattice units updated per seond)/10^6. `PerformanceMonitor` class in `lb_utils/lbm_utils.py` provides a simple MLUPS measure. As implemented in `samples/object2d.py`, instantiate a class object (`mlups_monitor`) and add one line `mlpus_monitor.update(step)` in the time loop. 
+MLUPS is (total number of lattice units updated per seond)/10^6. `PerformanceMonitor` class in `lb_utils/lbm_utils.py` provides a simple MLUPS measure. As implemented in [`samples/object2d.py`](./object2d.py), instantiate a class object (`mlups_monitor`) and add one line `mlpus_monitor.update(step)` in the time loop. 
 
 ```python
 from lb_utils.lbm_utils import PerformanceMonitor
@@ -124,6 +124,7 @@ while renderer.window.running and step < step_end:
 
 
 ## GPU vs CPU
+
 One of the attractive features of [Taichi](https://www.taichi-lang.org/) is its portability. No need to modify the code to migrate from a gpu to a cpu environment. Apple Silicon M2 used in the code development possesses 8 cpu cores (4 efficient, 4 performance) and 8 gpu cores. The sample code `samples/mlups_main.py` compares MLUPS with the M2 gpu and cpu for 100x100x100 cavity flow simulation. 
 
 ```bash
@@ -137,7 +138,7 @@ PYTHONPATH=. python samples/mlups_main.py
 
 ## Bumpy channel (trick with cylinders)
 
-`samples/bumpy.py` shows a multiple object case. Three cylinders are set on the channel wall to mimic bumpy channel geometry. For this purpose, `ObjectManager` classs is rewritten in `samples/object_bump.py`. 
+[`samples/bumpy.py`](./bumpy.py) shows a multiple object case. Three cylinders are set on the channel wall to mimic bumpy channel geometry. For this purpose, `ObjectManager` classs is rewritten in `samples/object_bump.py`. 
 
 1201x201; Re=5000; u=0.01, Cumulant ($\delta \rho$ mode)
 
@@ -180,7 +181,7 @@ The narrow gaps between the object and the wall causes strong vortical motion, f
 
 [Stanford bunny](https://graphics.stanford.edu/data/3Dscanrep/) in a duct. 
 
-Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`obstacle_stanford_bunny.py`](./obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
+Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`samples/obstacle_stanford_bunny.py`](./obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
 
 ```bash
 pip install 'trimesh[easy]'
