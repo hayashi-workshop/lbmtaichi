@@ -30,7 +30,7 @@ PYTHONPATH=. python examples/cavity3d.py
 
 ## Change domain size
 
-Let us try the standard square cavity flow. Copy the cavity flow sample as [`cavity2d_std.py`](./cavity2d_std.py)
+Let us try the standard square cavity flow. Copy the cavity flow example as [`cavity2d_std.py`](./cavity2d_std.py)
 
 ```bash
 cp examples/cavity2d.py examples/cavity2d_std.py
@@ -125,7 +125,7 @@ while renderer.window.running and step < step_end:
 
 ## GPU vs CPU
 
-One of the attractive features of [Taichi](https://www.taichi-lang.org/) is its portability. No need to modify the code to migrate from a gpu to a cpu environment. Apple Silicon M2 used in the code development possesses 8 cpu cores (4 efficient, 4 performance) and 8 gpu cores. The sample code `examples/mlups_main.py` compares MLUPS with the M2 gpu and cpu for 100x100x100 cavity flow simulation. 
+One of the attractive features of [Taichi](https://www.taichi-lang.org/) is its portability. No need to modify the code to migrate from a gpu to a cpu environment. Apple Silicon M2 used in the code development possesses 8 cpu cores (4 efficient, 4 performance) and 8 gpu cores. `examples/mlups_main.py` compares MLUPS with the M2 gpu and cpu for 100x100x100 cavity flow simulation. 
 
 ```bash
 cd $REPO_PATH
