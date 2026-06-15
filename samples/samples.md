@@ -180,7 +180,7 @@ The narrow gaps between the object and the wall causes strong vortical motion, f
 
 [Stanford bunny](https://graphics.stanford.edu/data/3Dscanrep/) in a duct. 
 
-Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`obstacle_stanford_bunny.py`](samples/obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
+Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`obstacle_stanford_bunny.py`](./obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
 
 ```bash
 pip install 'trimesh[easy]'
