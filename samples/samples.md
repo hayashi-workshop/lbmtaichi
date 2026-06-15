@@ -163,6 +163,11 @@ from lb_utils.lbm_utils import save_vtk
 
 ### Johansen-Collela
 
+```bash
+cd $REPO_PATH
+PYTHONPATH=. python samples/JCprob1.py
+```
+
 A star-like shape in [JC1998] as embedded solid boundary. See [samples/JCprob1.py](../samples/JCprob1.py). 
 
 <img src="../img/JCprob1.png"><img>
@@ -173,15 +178,22 @@ The narrow gaps between the object and the wall causes strong vortical motion, f
 
 ### Stanford bunny
 
-(241, 121, 121); length_scale = 60; offset = (50, 0, 30); (u, Re) = (0.1, 40000)
+[Stanford bunny](https://graphics.stanford.edu/data/3Dscanrep/) in a duct. 
 
-<img src="../img/stanford_bunny_vtk.png" width=600></img>
-
-Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field.
-
-In order to use trimesh, install the following packages to your virtual environment: 
+Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`obstacle_stanford_bunny.py`](samples/obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
 
 ```bash
 pip install 'trimesh[easy]'
 pip install networkx
 ```
+
+Then, 
+
+```bash
+cd $REPO_PATH
+PYTHONPATH=. python samples/stanford_bunny.py
+```
+
+(241, 121, 121); length_scale = 60; offset = (50, 0, 30) (corner edige of model bounding box); (u, Re) = (0.1, 40000)
+
+<img src="../img/stanford_bunny_vtk.png" width=600></img>
