@@ -51,7 +51,7 @@ After installation, I recommend taking a glance at Taichi sample gallery.
 ti gallery
 ```
 
-You will find von Karman vortex stream by Dr. Wang on the gallery tile. Clicking the sambnail invokes the simulation and the corresponding sample code will appear in the terminal. In my environment, the Taichi sample files can be found in 
+You will find von Karman vortex stream by Dr. Wang on the gallery tile. Clicking the sambnail invokes the simulation and the corresponding example code will appear in the terminal. In my environment, the Taichi example files can be found in 
 
 ```bash
 cd /opt/anaconda3/envs/taichi_env/lib/python3.1/site-packages/taichi/examples/simulation
@@ -86,15 +86,15 @@ jupyter notebook cumulant_moment_exprs.ipynb
 
 
 
-### Samples
+### Examples
 
-Here, some examples are exhibited for quick look. Please see [other samples](samples/samples.md).
+Here, some examples are exhibited for quick look. Please see [other examples](examples/examples.md).
 
 #### Lid-driven cavity flows
 
 ```
 cd $REPO_PATH
-PYTHONPATH=. python samples/cavity2d.py
+PYTHONPATH=. python examples/cavity2d.py
 ```
 
 Lattice points: 401x201; Re=500000; u=0.1
@@ -105,7 +105,7 @@ The top wall is moving right.
 
 ```
 cd $REPO_PATH
-PYTHONPATH=. python samples/cavity3d.py
+PYTHONPATH=. python examples/cavity3d.py
 ```
 Lattice points: 101x201x21; Re=5000; u=0.1
 The top wall is moving right. The four panels show vorticity components in xy (lower-left), xz (upper-left), zy (lower-right), and yz (upper-right) palnes. 
@@ -117,7 +117,7 @@ The top wall is moving right. The four panels show vorticity components in xy (l
 
 ```
 cd $REPO_PATH
-PYTHONPATH=. python samples/object2d.py
+PYTHONPATH=. python examples/object2d.py
 ```
 Lattice points: 1201x301; Re=100000; u=0.01
 
@@ -128,7 +128,7 @@ Lattice points: 1201x301; Re=100000; u=0.01
 
 ```
 cd $REPO_PATH
-PYTHONPATH=. python samples/object3d.py
+PYTHONPATH=. python examples/object3d.py
 ```
 Lattice points: 241x61x61; Re=10000; u=0.1
 The simulation dumps .vtr file for Paraview. 

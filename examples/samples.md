@@ -1,31 +1,31 @@
-# Samples
+# Examples
 
 ## Flow past a cylinder
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/object2d.py
+PYTHONPATH=. python examples/object2d.py
 ```
 
-Use `PYTHONPATH=.` to solve the library paths for samples/*.py launched from root dir. 
+Use `PYTHONPATH=.` to solve the library paths for examples/*.py launched from root dir. 
 
 ## Flow past a sphere
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/object3d.py
+PYTHONPATH=. python examples/object3d.py
 ```
 
 ## Lid-driven catity
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/cavity2d.py
+PYTHONPATH=. python examples/cavity2d.py
 ```
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/cavity3d.py
+PYTHONPATH=. python examples/cavity3d.py
 ```
 
 ## Change domain size
@@ -33,13 +33,13 @@ PYTHONPATH=. python samples/cavity3d.py
 Let us try the standard square cavity flow. Copy the cavity flow sample as [`cavity2d_std.py`](./cavity2d_std.py)
 
 ```bash
-cp samples/cavity2d.py samples/cavity2d_std.py
+cp examples/cavity2d.py examples/cavity2d_std.py
 ```
 
 Open the copied file to change some conditions: 
 
 ```bash
-nano samples/cavity2d_std.py
+nano examples/cavity2d_std.py
 ```
 
 - Cavity size (201, 201)
@@ -64,7 +64,7 @@ renderer = FluidRenderer(lbm, vmin=0., vmax=u*0.5) # Taichi realtime rendering #
 Save the file; then, 
 
 ```bash
-PYTHONPATH=. python samples/cavity2d_std.py
+PYTHONPATH=. python examples/cavity2d_std.py
 ```
 
 <img src="../img/cavity2d_std.png" width=201><img>
@@ -73,8 +73,8 @@ PYTHONPATH=. python samples/cavity2d_std.py
 ## Change boundary condition
 
 ```bash
-cp samples/cavity2d_std.py samples/cavity2d_std_bc.py
-nano samples/cavity2d_std_bc.py
+cp examples/cavity2d_std.py examples/cavity2d_std_bc.py
+nano examples/cavity2d_std_bc.py
 ```
 
 Change the following:
@@ -106,7 +106,7 @@ while renderer.window.running and step < step_end:
 
 ## MLUPS monitoring
 
-MLUPS is (total number of lattice units updated per seond)/10^6. `PerformanceMonitor` class in `lb_utils/lbm_utils.py` provides a simple MLUPS measure. As implemented in [`samples/object2d.py`](./object2d.py), instantiate a class object (`mlups_monitor`) and add one line `mlpus_monitor.update(step)` in the time loop. 
+MLUPS is (total number of lattice units updated per seond)/10^6. `PerformanceMonitor` class in `lb_utils/lbm_utils.py` provides a simple MLUPS measure. As implemented in [`examples/object2d.py`](./object2d.py), instantiate a class object (`mlups_monitor`) and add one line `mlpus_monitor.update(step)` in the time loop. 
 
 ```python
 from lb_utils.lbm_utils import PerformanceMonitor
@@ -125,11 +125,11 @@ while renderer.window.running and step < step_end:
 
 ## GPU vs CPU
 
-One of the attractive features of [Taichi](https://www.taichi-lang.org/) is its portability. No need to modify the code to migrate from a gpu to a cpu environment. Apple Silicon M2 used in the code development possesses 8 cpu cores (4 efficient, 4 performance) and 8 gpu cores. The sample code `samples/mlups_main.py` compares MLUPS with the M2 gpu and cpu for 100x100x100 cavity flow simulation. 
+One of the attractive features of [Taichi](https://www.taichi-lang.org/) is its portability. No need to modify the code to migrate from a gpu to a cpu environment. Apple Silicon M2 used in the code development possesses 8 cpu cores (4 efficient, 4 performance) and 8 gpu cores. The sample code `examples/mlups_main.py` compares MLUPS with the M2 gpu and cpu for 100x100x100 cavity flow simulation. 
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/mlups_main.py
+PYTHONPATH=. python examples/mlups_main.py
 ```
 
 <img src="../img/benchmark_mlups.png" width=400></img>
@@ -138,7 +138,7 @@ PYTHONPATH=. python samples/mlups_main.py
 
 ## Bumpy channel (trick with cylinders)
 
-[`samples/bumpy.py`](./bumpy.py) shows a multiple object case. Three cylinders are set on the channel wall to mimic bumpy channel geometry. For this purpose, `ObjectManager` classs is rewritten in `samples/object_bump.py`. 
+[`examples/bumpy.py`](./bumpy.py) shows a multiple object case. Three cylinders are set on the channel wall to mimic bumpy channel geometry. For this purpose, `ObjectManager` classs is rewritten in `examples/object_bump.py`. 
 
 1201x201; Re=5000; u=0.01, Cumulant ($\delta \rho$ mode)
 
@@ -166,10 +166,10 @@ from lb_utils.lbm_utils import save_vtk
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/JCprob1.py
+PYTHONPATH=. python examples/JCprob1.py
 ```
 
-A star-like shape in [JC1998] as embedded solid boundary. See [samples/JCprob1.py](../samples/JCprob1.py). 
+A star-like shape in [JC1998] as embedded solid boundary. See [examples/JCprob1.py](../examples/JCprob1.py). 
 
 <img src="../img/JCprob1.png"><img>
 
@@ -181,7 +181,7 @@ The narrow gaps between the object and the wall causes strong vortical motion, f
 
 [Stanford bunny](https://graphics.stanford.edu/data/3Dscanrep/) in a duct. 
 
-Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`samples/obstacle_stanford_bunny.py`](./obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
+Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`examples/obstacle_stanford_bunny.py`](./obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
 
 ```bash
 pip install 'trimesh[easy]'
@@ -192,7 +192,7 @@ Then,
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/stanford_bunny.py
+PYTHONPATH=. python examples/stanford_bunny.py
 ```
 
 (241, 121, 121); length_scale = 60; offset = (50, 0, 30) (corner edige of model bounding box); (u, Re) = (0.1, 40000)

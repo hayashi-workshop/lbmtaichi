@@ -9,7 +9,7 @@ from lb_utils.bc_kernel import BoundaryManager
 from lb_utils.render import FluidRenderer
 
 #from lb_utils.obstacle import ObstacleManager
-from samples.obstacle_bump import ObstacleManager
+from examples.obstacle_bump import ObstacleManager
 
 from lb_utils.lbm_utils import save_vtk
 from lb_utils.lbm_utils import PerformanceMonitor

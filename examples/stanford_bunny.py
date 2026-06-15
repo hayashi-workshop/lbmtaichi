@@ -14,7 +14,7 @@ from lb_utils.bc_kernel import BoundaryManager
 
 from lb_utils.render import FluidRenderer
 
-from samples.obstacle_stanford_bunny import ObstacleManager
+from examples.obstacle_stanford_bunny import ObstacleManager
 
 from lb_utils.lbm_utils import save_vtk
 from lb_utils.lbm_utils import PerformanceMonitor
