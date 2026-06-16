@@ -1,5 +1,7 @@
 # clbmtaichi - LBM on Taichi
 
+<img src="img/stanford_bunny_vtk.png" align="right" width="400" style="margin-left: 20px; margin-bottom: 20px;">
+
 This repository shares a lattice Boltzmann[Chen1998] solver which is accelerated with [Taichi-Lang](https://www.taichi-lang.org/). Taichi enhances developmenet of Python-based parallel computing programs. Its multiplatform nature realizes a great portability, and developers do not have to consider device-dependent optimization. The author learned Taichi implementation for LBM from the repository published by Dr. Zhuo Wang [LBM_Taichi](https://github.com/hietwll/LBM_Taichi). His LBM code (only 200 lines for von Karman vortex streen behind a circular object!) is exhibited in the Taichi gallery. Our project shared here is still simple, meaning that it possesses fundamental functions only, and is not suitable for neither industrial nor research purposes. However, it can, hopefully, have values from an educational point of view for those who want to understand the fundamentals and implmentation of LBM from scratch. 
 
 Features of the code are: 
