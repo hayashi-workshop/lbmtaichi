@@ -144,6 +144,7 @@ PYTHONPATH=. python examples/mlups_main.py
 
 <img src="../img/bumpy.png" width=1201><img>
 
+
 ## Using Paraview
 
 `pyevtk` allows you to dump simulation results in `vtk`/`vtr` for Paraview visualiation. Find an example how to dump field data with `pyevtk` in [`main.py`](../main.py): 
@@ -159,6 +160,7 @@ from lb_utils.lbm_utils import save_vtk
         if step % output_step and output_flag:
             save_vtk(lbm, step, output_dir)
 ```
+
 
 ## Irregular shape
 
@@ -176,6 +178,7 @@ A star-like shape in [JC1998] as embedded solid boundary. See [examples/JCprob1.
 The narrow gaps between the object and the wall causes strong vortical motion, for which the naive outlet boundary treatment can be dangerous and simulations may face a challenge for stability! 
 
 [JC1998] Johansen and Colella. Journal of Computational Physics, 147(1):60–85, 1998.
+
 
 ### Stanford bunny
 
@@ -199,6 +202,12 @@ PYTHONPATH=. python examples/stanford_bunny.py
 
 <img src="../img/stanford_bunny_vtk.png" width=600></img>
 
+Here, the isosurfaces represent Q-criterion, $Q = (|\Omega|^2 - |S|^2)/2$. In paraview, 
+
+- Load vtr file
+- Apply `Gradient` filter
+- Turn on `Compute Q criterion` in the filter panel
+- Apply `Contour` filter to the `Gradient` filter
 
 
 ## Extracting isosurfaces
@@ -210,6 +219,16 @@ PYTHONPATH=. python examples/stanford_bunny.py
 
 <img src="../img/extract_surface.png" width=300></img>
 
+Marching cube extracts isosurface as a set of triangles. The cubic cells consisting of the eight LB nodes are scanned to detect edges at which (S - isovalue) changes is sign where $S$ is a given field variable. This is actually done by using a look up table of 256 patterns for the state of the eight nodes (bit info of S - isovalue at eight nodes). Then, the intersection is calculated by linear interpolation. 
+
+This example extracts 10 isosurfaces from a singed distance field of sphere. On-Taichi implementation and on-cpu (serial) implementation are compared to check the validity of the former. 
+
+[!NOTE] `trimesh` is used same as the example above. 
+
+```bash
+cd $REPO_PATH
+PYTHONPATH=. python examples/mcube_extract_surface.py
+```
 
 ### Extract Q-criterion isosurfaces using marching cube
 
@@ -217,10 +236,4 @@ Compute and export Q-criterion [`examples/mcube_stanford_bunny.py`](./examples/m
 
 <video src="https://github.com/user-attachments/assets/7befea58-1075-4156-aa99-1c69275f05b4" width="600" autoplay loop muted playsinline></video>
 
-
-
-
-
-
-
-
+Frequent export of velocity data may occupy a large disk space. In this example, the marching cube method is used to extract two isosurfaces of Q-criterion to dump the surface (mesh) data rather than velocity volume data. The isosurface extraction is not so slow, but the data transfer from Taichi to Python scope (`to_numpy`) can be the bottole neck. 
