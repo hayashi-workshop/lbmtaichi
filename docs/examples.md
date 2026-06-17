@@ -30,7 +30,7 @@ PYTHONPATH=. python examples/cavity3d.py
 
 ## Change domain size
 
-Let us try the standard square cavity flow. Copy the cavity flow example as [`cavity2d_std.py`](./cavity2d_std.py)
+Let us try the standard square cavity flow. Copy the cavity flow example as [`cavity2d_std.py`](../examples/cavity2d_std.py)
 
 ```bash
 cp examples/cavity2d.py examples/cavity2d_std.py
@@ -106,7 +106,7 @@ while renderer.window.running and step < step_end:
 
 ## MLUPS monitoring
 
-MLUPS is (total number of lattice units updated per seond)/10^6. `PerformanceMonitor` class in `lb_utils/lbm_utils.py` provides a simple MLUPS measure. As implemented in [`examples/object2d.py`](./object2d.py), instantiate a class object (`mlups_monitor`) and add one line `mlpus_monitor.update(step)` in the time loop. 
+MLUPS is (total number of lattice units updated per seond)/10^6. `PerformanceMonitor` class in `lb_utils/lbm_utils.py` provides a simple MLUPS measure. As implemented in [`examples/object2d.py`](../examples/object2d.py), instantiate a class object (`mlups_monitor`) and add one line `mlpus_monitor.update(step)` in the time loop. 
 
 ```python
 from lb_utils.lbm_utils import PerformanceMonitor
@@ -138,7 +138,7 @@ PYTHONPATH=. python examples/mlups_main.py
 
 ## Bumpy channel (trick with cylinders)
 
-[`examples/bumpy.py`](./bumpy.py) shows a multiple object case. Three cylinders are set on the channel wall to mimic bumpy channel geometry. For this purpose, `ObjectManager` classs is rewritten in `examples/object_bump.py`. 
+[`examples/bumpy.py`](../examples/bumpy.py) shows a multiple object case. Three cylinders are set on the channel wall to mimic bumpy channel geometry. For this purpose, `ObjectManager` classs is rewritten in `examples/object_bump.py`. 
 
 1201x201; Re=5000; u=0.01, Cumulant ($\delta \rho$ mode)
 
@@ -184,7 +184,7 @@ The narrow gaps between the object and the wall causes strong vortical motion, f
 
 [Stanford bunny](https://graphics.stanford.edu/data/3Dscanrep/) in a duct. 
 
-Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`examples/obstacle_stanford_bunny.py`](./obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
+Polygon model@[trimesh repo](https://github.com/mikedh/trimesh) is used to set mask field (see [`examples/obstacle_stanford_bunny.py`](../examples/obstacle_stanford_bunny.py)). In order to use trimesh, install the following packages to your virtual environment: 
 
 ```bash
 pip install 'trimesh[easy]'
@@ -215,7 +215,7 @@ Here, the isosurfaces represent Q-criterion, $Q = (|\Omega|^2 - |S|^2)/2$. In pa
 ### Marching cube
 
 - MarchingCube class: [`lb_utils/marching_cube.py`](../lb_utils/marching_cube.py)
-- Surface extraction example [`examples/mcube_extra_surface.py`](./mcube_extract_surface.py)
+- Surface extraction example [`examples/mcube_extra_surface.py`](../examples/mcube_extract_surface.py)
 
 <img src="../img/extract_surface.png" width=300></img>
 
@@ -232,7 +232,7 @@ PYTHONPATH=. python examples/mcube_extract_surface.py
 
 ### Extract Q-criterion isosurfaces using marching cube
 
-Compute and export Q-criterion [`examples/mcube_stanford_bunny.py`](./mcube_stanford_bunny.py)
+Compute and export Q-criterion [`examples/mcube_stanford_bunny.py`](../examples/mcube_stanford_bunny.py)
 
 <video src="https://github.com/user-attachments/assets/7befea58-1075-4156-aa99-1c69275f05b4" width="600" autoplay loop muted playsinline></video>
 
