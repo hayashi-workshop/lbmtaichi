@@ -79,7 +79,8 @@ python main.py run --nd 1001 301 --Re 1000 --render velocity
 - Notes of [LB equations](docs/models.md)
 - [Kernel description](docs/kernels.md)
 - Some coding tips are listed [here](docs/tips.md)
-- Cumulants and moment expressions can be derived in an interactive way via [Jupyter Notebook](generator/cumulant_moment_exprs.ipynb). Open this notebook in your environment with `sympy`: 
+- Cumulants and moment expressions can be derived in an interactive way via [Jupyter Notebook](generator/cumulant_moment_exprs.ipynb). Open this notebook in your environment with `sympy`:
+- [Examples](docs/examples.md)
 
 ```bash
 cd $REPO_PATH/generator/
@@ -90,7 +91,7 @@ jupyter notebook cumulant_moment_exprs.ipynb
 
 ### Examples
 
-Here, some examples are exhibited for quick look. Please see [other examples](examples/examples.md).
+Here, some examples are exhibited for quick look. Please see [other examples](docs/examples.md).
 
 #### Lid-driven cavity flows
 
