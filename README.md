@@ -159,7 +159,7 @@ This implementation is inspired by the elegant and concise LBM approach presente
 
 - [Chen1998] Shiyi Chen and G. Doolen, LATTICE BOLTZMANN METHOD FOR FLUID FLOWS. Annual Review of Fluid Mechanics. (1998) 30: 329-364.
 - [TK2017] Timm Kruger et al., The Lattice Boltzmann Method. Principles and Practice, (2017) Springer: Very detailed in math, phys, and coding techniques. 
-- [TS2021] Takeshi Seta, Lattice Boltzmann Method. (2021) Morikita Publishing (in Japanese): Hands-on introduction of LBM. (written in Japanese)
+- [TS2021] Takeshi Seta, Lattice Boltzmann Method. (2021) Morikita Publishing: Hands-on introduction of LBM. (written in Japanese)
 
 
 
