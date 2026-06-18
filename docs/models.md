@@ -360,6 +360,14 @@ where $f_{bc}^{eq}$ is calculated for the boundary values of the macroscopic var
         f_post[x_bc] = config.f_eq(lbm, x_bc) + f_post[x_nb] - config.f_eq(lbm, x_nb) 
 ```
 
+[!MEMO] Guo's boundary condition needs fetching f_post from the neighboring nodes and push updated values to the boundary nodes. The current code applies this procedure to the masked region, thereby deteriorating the overall speed of simulation when the masked region is large. Possible remedies:
+
+- Skip masked nodes surrounding other masked nodes.
+- Bounce-back bc
+- Taichi SNode (Unfortunately, Metal not supported)
+
+
+
 [Guo2002] Guo et al. 2002. [Physics of Fluids](https://doi.org/10.1063/1.1471914) 14(6): 2007–10.
 
 [CW2022] Cheng and Wachs. 2022. [Journal of Computational](https://doi.org/10.1016/j.jcp.2022.111669) Physics 471: 111669.
