@@ -5,7 +5,15 @@ For cumulants and moments, see also [Jupynoter Notebook](../generator/cumulant_m
 
 ## Discrete velocity
 
-D2Q9 and D3Q27 models are supported.
+D2Q9 ($f_{0}$-$f_{8}$) and D3Q27 ($f_{0}$-$f_{26}$) models are supported.
+
+The macroscopic variables, the density and momentum, are the 0th and 1st-order moments of the velocity distribution function $f$: 
+
+$$
+\rho = \sum_{q=0}^{Q-1} f_{q},~~~~$\rho \mathbf{u}$ = \sum_{q=0}^{Q-1} \mathbf{c}_{q} f_{q}
+$$
+
+where $Q = 9$ or $Q = 27$. 
 
 ## LB equation
 The code solves the following lattice Boltzmann equation: 
