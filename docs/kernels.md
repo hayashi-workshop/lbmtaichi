@@ -28,16 +28,16 @@ The kernel files in [`lb_solver/`](../lb_solver/):
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/kernel_sample.py
-less samples/generated_kernel.py
+PYTHONPATH=. python examples/kernel_sample.py
+less examples/generated_kernel.py
 ```
 
 The collision process can be confirmed in the console message when `run_generator()` is run with `silient=False`. Run the following commend: 
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/kernel_sample.py > samples/mrt_algorith.txt
-less samples/mrt_algorithm.txt
+PYTHONPATH=. python examples/kernel_sample.py > examples/mrt_algorith.txt
+less examples/mrt_algorithm.txt
 ```
 
 This sample shows the derivation of MRT collision kernel:
@@ -82,15 +82,15 @@ collision_model = "TRT"
 dimension       = 3
 omega           = [1.8, 1.1]
 
-run_generator(collision_model=collision_model, dimension=dimension, omega_config_input=omega, output_filename="samples/generated_kernel.py", target_directory="./")
+run_generator(collision_model=collision_model, dimension=dimension, omega_config_input=omega, output_filename="examples/generated_kernel.py", target_directory="./")
 ```
 
 Then, 
 
 ```bash
 cd $REPO_PATH
-PYTHONPATH=. python samples/kernel_sample.py > samples/trt_algorith.txt
-less samples/trt_algorithm.txt
+PYTHONPATH=. python examples/kernel_sample.py > examples/trt_algorith.txt
+less examples/trt_algorithm.txt
 ```
 
 
@@ -135,7 +135,7 @@ in `d3q27_Cumulant_kernel.py`. In the cumulant collision process, high order cum
 
 ## Hashed equations: Sympy CSE 
 
-The above example generates `samples/generated_kernel.py`. The first part may look like
+The above example generates `examples/generated_kernel.py`. The first part may look like
 
 ```python
             # 1) Forward transformation from f to raw moment
