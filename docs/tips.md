@@ -5,13 +5,13 @@
 The memory layout of the distribution function is [f0[], f0[], ..., f0[] | f1[], f1[], ..., f1[] | ...] (SoA), not [ f0[], f1[], ..., f8[] | f0[], f1[], ..., f8[]] (AoS). The former is the field-based, and the latter is the node-based layout. 
 
 ```python
-        self.f_old = ti.Vector.field(self.Q, float)
-        self.f_new = ti.Vector.field(self.Q, float)
-        block = ti.root.dense(self.ti_axes, self.nd)
-        for q in range(self.Q): 
-            block.place(self.f_old.get_scalar_field(q))
-        for q in range(self.Q): # allocation must be done with another for loop
-            block.place(self.f_new.get_scalar_field(q))
+            block_old = ti.root.dense(self.ti_axes, self.nd)
+            for q in range(self.Q): 
+                block_old.place(self.f_old.get_scalar_field(q))
+
+            block_new = ti.root.dense(self.ti_axes, self.nd)
+            for q in range(self.Q): # allocation must be done with another for loop
+                block_new.place(self.f_new.get_scalar_field(q))
 ```
 
 
