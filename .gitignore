@@ -6,6 +6,7 @@ output/
 playground/
 lb_solver/generated_kernel.py
 imgui.ini
+stanford_bunny.ply
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
