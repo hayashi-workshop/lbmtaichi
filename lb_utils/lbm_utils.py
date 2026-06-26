@@ -73,10 +73,12 @@ def save_vtk(lbm: ti.template(), step, output_dir=None):
     v_np = lbm.vel.get_scalar_field(1).to_numpy()
     x, y = np.arange(lbm.nx), np.arange(lbm.ny)
     if lbm.dim == 2:
+        z = np.zeros(1)
+        w_np = np.zeros_like(u_np)
         gridToVTK(
             output_dir + f"/step_{step:06d}", 
-            x, y,  
-            pointData={"velocity": (u_np, v_np)}
+            x, y, z, 
+            pointData={"velocity": (u_np, v_np, w_np)}
         )
     else:
         w_np = lbm.vel.get_scalar_field(2).to_numpy()
