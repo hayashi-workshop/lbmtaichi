@@ -39,6 +39,34 @@ $$
 The $\*$ decoration denotes the post-collision distribution. 
 
 
+### Pull/Push scheme
+
+In collision-streaming kernel (Taichi kernel `col_stream_core`), streaming and collision are conducted in the same `for` loop since invoking Taichi kernel and fetching/writing distribution functions twice deteriorate simulation performce. 
+
+The pull scheme is as follows: 
+- fetch $f$s from negihbors (pull streaming), then
+- perform collision and store $f$s at `(i,j,k)`.
+- boundary condition is applied to the post-collision distributions. 
+
+The push scheme is 
+- fetch $f$s from `(i,j,k)` and do collision process, then
+- push the post-collision $f$s to the neighbors.
+- boundary condition is applied to the streamed distributions. 
+
+The `ModelConfig` employs the pull scheme as default. You can choose the push by specifying the mode as 
+
+```python
+config = ModelConfig(mode="push")
+```
+
+[!NOTE]
+
+The pull (push) scheme should be used with Guo's (bounce-back) boundary condition. These boundary conditions are defined, respectively, in  
+
+- `lb_utils/bc_kernel.py` (Guo's bc)
+- `lb_utils/bback_kernel.py` ((delayed) bounce-back)
+
+
 ## Equilibrium distribution function
 
 The equilibrium distribution function in LBM is given by 
@@ -356,7 +384,7 @@ The values of $\omega$ except $\omega_{1}$ will be initially set to one if you d
 
 ## Boundary condition
 
-The boundary condition implemented here is the same as in [LBM_Taichi](https://github.com/hietwll/LBM_Taichi), that is, Guo's extrapolation method: 
+The boundary condition implemented here is the same as in [LBM_Taichi](https://github.com/hietwll/LBM_Taichi), that is, Guo's extrapolation method (`lb_utils/bc_kernel.py`): 
 
 $$
 f_{bc} = f_{bc}^{eq} + f_{neighbor} - f_{neibor}^{eq}
@@ -368,10 +396,21 @@ where $f_{bc}^{eq}$ is calculated for the boundary values of the macroscopic var
         f_post[x_bc] = config.f_eq(lbm, x_bc) + f_post[x_nb] - config.f_eq(lbm, x_nb) 
 ```
 
-[!MEMO] Guo's boundary condition needs fetching f_post from the neighboring nodes and push updated values to the boundary nodes. The current code applies this procedure to the masked region, thereby deteriorating the overall speed of simulation when the masked region is large. Possible remedies:
+
+The bounce-back boundary condition is also available in `lb_utils/bback_kernel.py`. 
+
+$$
+f_{\bar{i}} = f_{i} + 2 \frac{w_{i}}{c_{s}^{2}} \mathbf{c}_{i} \cdot \mathbf{u}_{bc} 
+$$
+
+where $\bar{i}$ is the direction opposite to {i} and $\mathbf{u}_{bc}$ is the velocity of boundary. See `generator/generator_utils/helper_bounceback.py` for `sympy` construction of bounce-back code. 
+
+The former and latter bcs are compatible with pull and push streaming scheme, respectively. Different combination may cause numerical oscillations. 
+
+
+[!MEMO] The current code sweep all mask nodes, thereby deteriorating the overall speed of simulation when the masked region is large. Possible remedies:
 
 - Skip masked nodes surrounding other masked nodes.
-- Bounce-back bc
 - Taichi SNode (Unfortunately, Metal not supported)
 
 
