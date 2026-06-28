@@ -106,7 +106,7 @@ PYTHONPATH=. python examples/nested.py
 
 The implementation is ongoing. The related module files are tentative and will be replaced. 
 
-4 level nested grids surrounding a cylindrical object. The numbers of nodes are `nd0 = (801, 201)`, `(400, 280)`, `(440, 320)`, `(580, 480)` from level 0 to 3, and the grid boundaries are represented with the white boxes. 20 nodes are adopted to the cylinder raidus at level 0, while 160 nodes at level 3. Communication between grids between different levels is based on [Geier2009]. 
+4 level nested grids surrounding a cylindrical object. The numbers of nodes are `nd0 = (801, 201)`, `(400, 280)`, `(440, 320)`, `(580, 480)` from level 0 to 3, and the grid boundaries are represented with the white boxes. 20 nodes are adopted to the cylinder raidus at level 0, while 160 nodes at level 3. Communication between grids at different levels is based on the bubble function proposed in [Geier2009]. 
 
 [Geier2009] Geier et al. 2009. The European Physical Journal. Special Topics 171(1): 173-79.
 
