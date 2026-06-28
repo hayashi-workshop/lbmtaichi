@@ -237,3 +237,9 @@ Compute and export Q-criterion [`examples/mcube_stanford_bunny.py`](../examples/
 <video src="https://github.com/user-attachments/assets/7befea58-1075-4156-aa99-1c69275f05b4" width="600" autoplay loop muted playsinline></video>
 
 Frequent export of velocity data may occupy a large disk space. In this example, the marching cube method is used to extract two isosurfaces of Q-criterion to dump the surface (mesh) data rather than velocity volume data. The isosurface extraction is not so slow, but the data transfer from Taichi to Python scope (`to_numpy`) can be the bottole neck. 
+
+
+## Bounce-back boundary condition
+
+The above examples are all for the combination of pull streaming/Guo's boundary condition. Applications of push streaming with the (delayed) bounce-back scheme can be found in examples named `_bb.py`
+
